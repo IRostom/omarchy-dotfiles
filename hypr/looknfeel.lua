@@ -42,6 +42,10 @@ hl.layer_rule({
   match = { namespace = "omarchy-bar" },
   blur = true,
   ignore_alpha = 0.2,
+  -- Wi-Fi/Bluetooth/audio/etc. panels are xdg-popups anchored to the bar's
+  -- own layer surface (Quickshell's PopupCard), not separate layer-shell
+  -- surfaces of their own — so they need this to inherit the bar's blur.
+  blur_popups = true,
 })
 
 -- https://wiki.hypr.land/Configuring/Basics/Variables/#animations

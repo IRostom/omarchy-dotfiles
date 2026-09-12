@@ -30,6 +30,12 @@ Before adding or editing any file here:
   deltas from stock Omarchy, not a full copy of Omarchy's config.
 - `omarchy/shell.json` — the Omarchy shell's bar layout, widget list, and
   idle timings (`~/.config/omarchy/shell.json`).
+- `omarchy/shell.toml` — machine-level style override (`~/.config/omarchy/shell.toml`,
+  distinct from `shell.json`): font size, popup translucency (`[popups]
+  background-alpha`), etc. Values here win over the active theme's own
+  `shell.toml` and survive `omarchy theme set`. This is the right place for
+  any further "match every panel/popup to X" style change — no per-widget
+  plugin edit needed.
 - `plugins/<id>/` — custom Omarchy shell plugins, each a self-contained
   package per <https://plugins.omarchy.org/develop.html> (`manifest.json` +
   entry point QML + `README.md` + `LICENSE`). These are user-owned clones of

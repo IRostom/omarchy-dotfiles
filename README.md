@@ -9,15 +9,37 @@ instead of re-doing every tweak by hand.
 
 ```
 hypr/
-  looknfeel.lua      # decoration/blur + the omarchy-bar layer_rule (frosted glass bar)
+  looknfeel.lua      # decoration/blur + the omarchy-bar layer_rule (frosted glass bar + panels)
   monitors.lua        # display layout
 omarchy/
   shell.json          # bar layout/widgets, idle timings
+  shell.toml           # machine-level style override: font size, popup translucency
 plugins/
   irostom.bar/         # personal clone of the built-in bar (frosted-glass chips)
   irostom.tray/        # personal clone of the built-in tray widget
   irostom.workspaces/  # personal clone of the built-in workspaces widget
 ```
+
+### Frosted glass, theme-independent
+
+The bar's frosted look is two parts, both here:
+
+- `hypr/looknfeel.lua` — `decoration.blur.enabled = true`, plus a `layer_rule`
+  on the `omarchy-bar` namespace with `blur = true` and **`blur_popups =
+  true`**. That second flag matters: the Wi-Fi/Bluetooth/audio/etc. panels
+  are xdg-popups anchored to the bar's own layer surface (Quickshell's
+  `PopupCard`), not separate layer-shell surfaces of their own, so they only
+  pick up blur when the parent layer's rule explicitly extends it to popups.
+- `omarchy/shell.toml` — `[popups] background-alpha = 0.55`. This is
+  Omarchy's own machine-level style override (`~/.config/omarchy/shell.toml`,
+  distinct from `shell.json`): every popup panel (Wi-Fi, Bluetooth, audio,
+  dropdowns, tooltips — anything using `Color.popups.*`) reads its
+  translucency from here, uniformly, without touching a single widget's QML.
+  It also survives `omarchy theme set` (a theme's *own* `shell.toml`, if it
+  ships one, only supplies the base values this overrides). Only the bar's
+  own chip translucency lives in the `irostom.bar` plugin clone (see its
+  README) since the bar draws its own chip shapes rather than using
+  `PopupCard`.
 
 Each folder under `plugins/` is a self-contained Omarchy shell plugin per the
 [plugin development reference](https://plugins.omarchy.org/develop.html)
@@ -73,7 +95,15 @@ Simplest correct order:
    omarchy restart shell
    ```
 
-5. **Verify**
+5. **Symlink the shell style override** (font size + frosted popup
+   translucency — hot-reloads, no restart needed):
+   ```bash
+   REPO=~/Work/omarchy-dotfiles
+   [[ -f ~/.config/omarchy/shell.toml ]] && mv ~/.config/omarchy/shell.toml ~/.config/omarchy/shell.toml.bak
+   ln -s "$REPO/omarchy/shell.toml" ~/.config/omarchy/shell.toml
+   ```
+
+6. **Verify**
    ```bash
    hyprctl configerrors        # empty output = clean
    omarchy plugin list --json  # irostom.bar / irostom.tray / irostom.workspaces should show up, enabled

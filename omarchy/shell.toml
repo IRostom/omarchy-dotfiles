@@ -1,0 +1,8 @@
+[font]
+base-size = 14
+
+# Frosted-glass popups (Wi-Fi, Bluetooth, audio, etc.) to match the bar.
+# Machine-level override: survives `omarchy theme set`, unlike a theme's own
+# shell.toml. Values here win over whatever the active theme defines.
+[popups]
+background-alpha = 0.55
