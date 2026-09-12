@@ -16,9 +16,6 @@
           "id": "omarchy.weather"
         },
         {
-          "id": "irostom.ollama"
-        },
-        {
           "id": "omarchy.system-update"
         }
       ],
@@ -36,6 +33,9 @@
         },
         {
           "id": "irostom.logimouse"
+        },
+        {
+          "id": "irostom.ollama"
         },
         {
           "id": "omarchy.agents"
