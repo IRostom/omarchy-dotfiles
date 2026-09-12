@@ -5,4 +5,9 @@ base-size = 14
 # Machine-level override: survives `omarchy theme set`, unlike a theme's own
 # shell.toml. Values here win over whatever the active theme defines.
 [popups]
-background-alpha = 0.55
+# Hyprland's blur can't reach these panels (they're xdg-popups rendered
+# outside the bar layer's own tiny box — confirmed not fixable via
+# layer_rule/decoration config, see hypr/looknfeel.lua's comment). Compensate
+# with a more opaque tint so it reads as a frosted pane instead of a sheet of
+# glass with straight see-through.
+background-alpha = 0.82

@@ -42,11 +42,20 @@ hl.layer_rule({
   match = { namespace = "omarchy-bar" },
   blur = true,
   ignore_alpha = 0.2,
-  -- Wi-Fi/Bluetooth/audio/etc. panels are xdg-popups anchored to the bar's
-  -- own layer surface (Quickshell's PopupCard), not separate layer-shell
-  -- surfaces of their own — so they need this to inherit the bar's blur.
-  blur_popups = true,
 })
+
+-- NOTE on Wi-Fi/Bluetooth/audio/etc. panels: they are xdg-popups anchored to
+-- the bar's layer surface (Quickshell's PopupCard), but the "omarchy-bar"
+-- layer surface is only its own tiny 2560x40 box — the popups paint well
+-- outside that, and Hyprland's blur render pass doesn't reach content outside
+-- a layer's own box. Tried `blur_popups = true` here, `xray`, a wildcard
+-- `namespace = ".*"` layer_rule, and the global `decoration.blur.popups`
+-- option — none made any difference (confirmed with screenshots: real window
+-- blur worked fine throughout, this popup stayed perfectly crisp every time).
+-- Matches known Hyprland issues (hyprwm/Hyprland#7357, #8408) where blurring
+-- xdg-popups spawned from a layer surface is unreliable/regressed upstream.
+-- Those panels' frosted look is opacity-only, tuned in omarchy/shell.toml's
+-- [popups] background-alpha — not a Hyprland blur.
 
 -- https://wiki.hypr.land/Configuring/Basics/Variables/#animations
 -- hl.config({
