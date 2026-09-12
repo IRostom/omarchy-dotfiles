@@ -18,6 +18,7 @@ plugins/
   irostom.bar/         # personal clone of the built-in bar (frosted-glass chips)
   irostom.tray/        # personal clone of the built-in tray widget
   irostom.workspaces/  # personal clone of the built-in workspaces widget
+  irostom.logimouse/   # fork of the third-party omalogimouse plugin (MX Master mouse control)
 ```
 
 ### Frosted glass, theme-independent
@@ -55,6 +56,20 @@ Each folder under `plugins/` is a self-contained Omarchy shell plugin per the
 (`manifest.json`, entry point, `README.md`, `LICENSE`) and passes
 `omarchy plugin validate <folder>`.
 
+### Why a third-party plugin needed forking too
+
+`irostom.bar` being a third-party (non-first-party) bar has one consequence
+beyond the frosted-glass styling: any *other* third-party plugin that tries
+to fetch a live service via `bar.shell.serviceFor(moduleName)` gets a
+service-less facade back instead — a deliberate Omarchy shell restriction so
+an untrusted bar can't read a different third-party plugin's live service
+object. `omalogimouse` (Logitech MX Master mouse control) hit exactly this:
+it showed permanently offline under `irostom.bar` despite Solaar itself
+seeing the mouse fine. `irostom.logimouse` is a fork that has the widget own
+its Solaar-backed process directly instead of looking it up through that
+bridge — see its own README for the full explanation. This is a property of
+running *any* custom bar, not something specific to `irostom.bar`'s styling.
+
 ## Restoring on a fresh Omarchy install
 
 Do these **in order**. Steps 1–2 are config files; steps 3–5 are the plugins
@@ -83,14 +98,17 @@ Simplest correct order:
    ```
 
 3. **Symlink each plugin folder into place** (order doesn't matter between
-   these three, but do this before/with step 4 since `shell.json` references
-   these plugin ids by name):
+   these, but do this before/with step 4 since `shell.json` references these
+   plugin ids by name). `irostom.logimouse` additionally needs `solaar`
+   installed (`sudo pacman -S solaar`) and a paired Logitech MX Master mouse
+   to ever show as connected — otherwise it just renders offline, harmlessly:
    ```bash
    REPO=~/Work/omarchy-dotfiles
    mkdir -p ~/.config/omarchy/plugins
    ln -s "$REPO/plugins/irostom.bar" ~/.config/omarchy/plugins/irostom.bar
    ln -s "$REPO/plugins/irostom.tray" ~/.config/omarchy/plugins/irostom.tray
    ln -s "$REPO/plugins/irostom.workspaces" ~/.config/omarchy/plugins/irostom.workspaces
+   ln -s "$REPO/plugins/irostom.logimouse" ~/.config/omarchy/plugins/irostom.logimouse
    omarchy-shell shell rescanPlugins
    ```
 
@@ -115,7 +133,7 @@ Simplest correct order:
 6. **Verify**
    ```bash
    hyprctl configerrors        # empty output = clean
-   omarchy plugin list --json  # irostom.bar / irostom.tray / irostom.workspaces should show up, enabled
+   omarchy plugin list --json  # irostom.bar / irostom.tray / irostom.workspaces / irostom.logimouse should show up, enabled
    ```
 
 ### Adding a genuinely third-party plugin (not part of this repo)

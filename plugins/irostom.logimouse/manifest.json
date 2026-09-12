@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "irostom.logimouse",
+  "name": "My Logimouse",
+  "version": "1.0.0",
+  "author": "Ormus Solutions",
+  "license": "MIT",
+  "description": "Fork of Omalogimouse: owns its Solaar-backed service directly instead of looking it up via the shell's cross-plugin service bridge, so it works under a custom (non-first-party) bar. Battery, DPI, MagSpeed, acceleration, and button actions for Logitech MX Master mice.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "My Logimouse",
+    "description": "Logitech MX Master battery, acceleration, and button binds",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
