@@ -25,21 +25,30 @@ plugins/
 The bar's frosted look is two parts, both here:
 
 - `hypr/looknfeel.lua` — `decoration.blur.enabled = true`, plus a `layer_rule`
-  on the `omarchy-bar` namespace with `blur = true` and **`blur_popups =
-  true`**. That second flag matters: the Wi-Fi/Bluetooth/audio/etc. panels
-  are xdg-popups anchored to the bar's own layer surface (Quickshell's
-  `PopupCard`), not separate layer-shell surfaces of their own, so they only
-  pick up blur when the parent layer's rule explicitly extends it to popups.
-- `omarchy/shell.toml` — `[popups] background-alpha = 0.55`. This is
+  on the `omarchy-bar` namespace with `blur = true`. This genuinely blurs the
+  bar's own chips. It does **not** reach the Wi-Fi/Bluetooth/audio/etc.
+  panels, despite those being popups of the same layer surface — confirmed
+  by testing (screenshots against a detailed wallpaper, plus a real blurred
+  window as a control) that no combination of `blur_popups`, `xray`, a
+  wildcard `layer_rule`, or the global `decoration.blur.popups` option makes
+  any difference. Root cause: the `omarchy-bar` layer surface's own box is
+  just `2560x40` (the bar strip); the popups paint well outside that, and
+  Hyprland's blur render pass doesn't extend past a layer's own box. This
+  matches known upstream issues ([hyprwm/Hyprland#7357](https://github.com/hyprwm/Hyprland/issues/7357),
+  [#8408](https://github.com/hyprwm/Hyprland/issues/8408)) — see the comment
+  in `hypr/looknfeel.lua` for the full note.
+- `omarchy/shell.toml` — `[popups] background-alpha = 0.82`. Since those
+  panels can't get real blur, this is opacity-only: a fairly opaque tint so
+  they read as a frosted pane rather than plain see-through glass. This is
   Omarchy's own machine-level style override (`~/.config/omarchy/shell.toml`,
   distinct from `shell.json`): every popup panel (Wi-Fi, Bluetooth, audio,
   dropdowns, tooltips — anything using `Color.popups.*`) reads its
   translucency from here, uniformly, without touching a single widget's QML.
   It also survives `omarchy theme set` (a theme's *own* `shell.toml`, if it
   ships one, only supplies the base values this overrides). Only the bar's
-  own chip translucency lives in the `irostom.bar` plugin clone (see its
-  README) since the bar draws its own chip shapes rather than using
-  `PopupCard`.
+  own chip translucency (which *does* get real blur) lives in the
+  `irostom.bar` plugin clone (see its README) since the bar draws its own
+  chip shapes rather than using `PopupCard`.
 
 Each folder under `plugins/` is a self-contained Omarchy shell plugin per the
 [plugin development reference](https://plugins.omarchy.org/develop.html)
