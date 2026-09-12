@@ -16,6 +16,9 @@
           "id": "omarchy.weather"
         },
         {
+          "id": "irostom.ollama"
+        },
+        {
           "id": "omarchy.system-update"
         }
       ],

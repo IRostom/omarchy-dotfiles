@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "irostom.ollama",
+  "name": "Ollama",
+  "version": "1.0.0",
+  "author": "irostom",
+  "description": "Ollama server status, context window, and loaded models",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Ollama",
+    "description": "Ollama server status, context window, and loaded models",
+    "category": "System",
+    "allowMultiple": false
+  }
+}
