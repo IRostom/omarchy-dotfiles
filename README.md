@@ -19,6 +19,8 @@ plugins/
   irostom.tray/        # personal clone of the built-in tray widget
   irostom.workspaces/  # personal clone of the built-in workspaces widget
   irostom.logimouse/   # fork of the third-party omalogimouse plugin (MX Master mouse control)
+  irostom.ollama/      # bar widget: local Ollama server status, context window, loaded models
+  irostom.commandcenter/ # bar widget: macOS-Control-Center-style popup (Wi-Fi/Bluetooth/volume/media/quick toggles)
 ```
 
 ### Frosted glass, theme-independent
@@ -50,6 +52,13 @@ The bar's frosted look is two parts, both here:
   own chip translucency (which *does* get real blur) lives in the
   `irostom.bar` plugin clone (see its README) since the bar draws its own
   chip shapes rather than using `PopupCard`.
+
+`irostom.bar` also adds a `quickStatus` layout region alongside the stock
+left/center/right ones: a conditional pill, between the center and right
+chips, that only appears once one of Stay Awake/DND/Night Light/Reminder is
+active, animating in/out rather than popping. The center pill now similarly
+gates the now-playing media widget to "actually playing" (not just loaded)
+before showing itself.
 
 Each folder under `plugins/` is a self-contained Omarchy shell plugin per the
 [plugin development reference](https://plugins.omarchy.org/develop.html)
@@ -101,7 +110,9 @@ Simplest correct order:
    these, but do this before/with step 4 since `shell.json` references these
    plugin ids by name). `irostom.logimouse` additionally needs `solaar`
    installed (`sudo pacman -S solaar`) and a paired Logitech MX Master mouse
-   to ever show as connected — otherwise it just renders offline, harmlessly:
+   to ever show as connected, and `irostom.ollama` needs a local `ollama`
+   install reachable at `http://127.0.0.1:11434` — otherwise they just render
+   offline, harmlessly:
    ```bash
    REPO=~/Work/omarchy-dotfiles
    mkdir -p ~/.config/omarchy/plugins
@@ -109,6 +120,8 @@ Simplest correct order:
    ln -s "$REPO/plugins/irostom.tray" ~/.config/omarchy/plugins/irostom.tray
    ln -s "$REPO/plugins/irostom.workspaces" ~/.config/omarchy/plugins/irostom.workspaces
    ln -s "$REPO/plugins/irostom.logimouse" ~/.config/omarchy/plugins/irostom.logimouse
+   ln -s "$REPO/plugins/irostom.ollama" ~/.config/omarchy/plugins/irostom.ollama
+   ln -s "$REPO/plugins/irostom.commandcenter" ~/.config/omarchy/plugins/irostom.commandcenter
    omarchy-shell shell rescanPlugins
    ```
 
@@ -133,7 +146,8 @@ Simplest correct order:
 6. **Verify**
    ```bash
    hyprctl configerrors        # empty output = clean
-   omarchy plugin list --json  # irostom.bar / irostom.tray / irostom.workspaces / irostom.logimouse should show up, enabled
+   omarchy plugin list --json  # irostom.bar / irostom.tray / irostom.workspaces / irostom.logimouse /
+                                # irostom.ollama / irostom.commandcenter should show up, enabled
    ```
 
 ### Adding a genuinely third-party plugin (not part of this repo)

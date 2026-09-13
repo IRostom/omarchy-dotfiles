@@ -4,19 +4,19 @@
     "layout": {
       "center": [
         {
-          "id": "omarchy.indicators"
-        },
-        {
           "id": "omarchy.media"
-        },
+        }
+      ],
+      "quickStatus": [
         {
-          "id": "omarchy.keyboard-layout"
-        },
-        {
-          "id": "omarchy.weather"
-        },
-        {
-          "id": "omarchy.system-update"
+          "id": "omarchy.indicators",
+          "items": [
+            "StayAwake",
+            "Dnd",
+            "NightLight",
+            "Reminder"
+          ],
+          "alwaysShow": false
         }
       ],
       "left": [
@@ -30,6 +30,12 @@
       "right": [
         {
           "id": "irostom.tray"
+        },
+        {
+          "id": "omarchy.keyboard-layout"
+        },
+        {
+          "id": "omarchy.system-update"
         },
         {
           "id": "irostom.logimouse"
@@ -60,6 +66,12 @@
           "format": "h:mm AP",
           "formatAlt": "d MMMM 'W'ww yyyy",
           "verticalFormat": "HH\nmm"
+        },
+        {
+          "id": "irostom.commandcenter"
+        },
+        {
+          "id": "omarchy.weather"
         }
       ]
     },

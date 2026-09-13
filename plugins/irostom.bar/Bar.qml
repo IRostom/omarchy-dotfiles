@@ -46,10 +46,18 @@ Item {
     position: "top",
     transparent: false,
     centerAnchor: "omarchy.clock",
-    layout: { left: [], center: [], right: [] }
+    layout: { left: [], center: [], right: [], quickStatus: [] }
   })
   property var layoutConfig: fallbackBarConfig.layout
   property string centerAnchor: ""
+  // Bar capabilities (kind "bar") get real access to first-party services
+  // through this same `shell` property that plain bar-widget plugins are
+  // denied — see the centerGate comment further down for why the "only
+  // while actually playing" gate for the media pill lives here instead of
+  // in the omarchy.media widget itself.
+  readonly property var mediaService: root.shell && typeof root.shell.firstPartyServiceFor === "function"
+    ? root.shell.firstPartyServiceFor("omarchy.media") : null
+  readonly property bool mediaPlaying: !!(mediaService && mediaService.activePlayer && mediaService.activePlayer.isPlaying)
   property bool requestedTransparent: false
   property bool useTransparentForeground: false
   property bool transparent: false
@@ -561,12 +569,21 @@ Item {
 
   // Apply tray-pinning on top of the shared layout normalization so the
   // bar host and scriptable config helpers can't drift on entry shape.
+  //
+  // `quickStatus` is a region of our own: the shared Util.normalizeLayout
+  // (first-party, unaware of it) only round-trips left/center/right, so it's
+  // normalized here with the same entry-cloning/id-canonicalizing rules
+  // instead. It holds the conditional status pill (see quickStatusChip in
+  // horizontalBar) that only ever contains one fixed indicators entry, so it
+  // needs no tray-pinning.
   function normalizeLayout(layout) {
-    var normalized = Util.normalizeLayout(Util.isPlainObject(layout) ? layout : fallbackBarConfig.layout)
+    var src = Util.isPlainObject(layout) ? layout : fallbackBarConfig.layout
+    var normalized = Util.normalizeLayout(src)
     return {
       left:   pinTrayToInner(normalized.left,   "left"),
       center: pinTrayToInner(normalized.center, "center"),
-      right:  pinTrayToInner(normalized.right,  "right")
+      right:  pinTrayToInner(normalized.right,  "right"),
+      quickStatus: Util.normalizeLayoutSection(src.quickStatus)
     }
   }
 
@@ -1377,17 +1394,36 @@ Item {
       Item {
         anchors.fill: parent
 
-        Rectangle {
+        AnimatedPillChip {
           id: centerChip
           anchors.horizontalCenter: parent.horizontalCenter
           anchors.verticalCenter: parent.verticalCenter
-          width: centerModules.width > 0 ? centerModules.width + barWindow.chipHPad * 2 : 0
-          height: parent.height
-          radius: height / 2
-          visible: centerModules.width > 0
-          color: root.transparent ? "transparent" : root.frostedBackground(root.background)
+          contentWidth: centerGate.width
+          chipHPad: barWindow.chipHPad
         }
-        CenterModules { id: centerModules; anchors.centerIn: centerChip }
+
+        // The stock omarchy.media widget shows itself for any loaded track,
+        // paused included. This bar only ever gives it the whole center pill
+        // (no neighbors to share space with), so gate it down further to
+        // "actually playing" here, using the trusted bar's own service
+        // access — a plain bar-widget clone of omarchy.media can't reach
+        // firstPartyServiceFor itself (see shell.qml's createScopedPluginShell:
+        // the media service id is only handed to plugins with real bar
+        // capabilities), so the gating has to live here instead of in a fork
+        // of the widget. `visible` (not just zero size) keeps the hidden
+        // widget's own click target out of the hit-test area too.
+        Item {
+          id: centerGate
+          anchors.centerIn: centerChip
+          visible: root.mediaPlaying
+          implicitWidth: visible ? centerModules.width : 0
+          implicitHeight: visible ? centerModules.height : 0
+          width: implicitWidth
+          height: implicitHeight
+          clip: true
+
+          CenterModules { id: centerModules; anchors.centerIn: parent }
+        }
 
         Rectangle {
           id: leftChip
@@ -1414,6 +1450,21 @@ Item {
           color: root.transparent ? "transparent" : root.frostedBackground(root.background)
         }
         RightModules { id: rightModules; anchors.centerIn: rightChip }
+
+        // The conditional status pill: sits between the center and right
+        // chips, hugging the right one, and only ever holds the fixed
+        // `quickStatusEntry` indicators instance (see below) — invisible
+        // (zero width) whenever none of Stay Awake/DND/Night Light/Reminder
+        // are active, so it and its chip vanish along with it.
+        AnimatedPillChip {
+          id: quickStatusChip
+          anchors.right: rightChip.left
+          anchors.rightMargin: Style.space(10)
+          anchors.verticalCenter: parent.verticalCenter
+          contentWidth: quickStatusModules.width
+          chipHPad: barWindow.chipHPad
+        }
+        QuickStatusModules { id: quickStatusModules; anchors.centerIn: quickStatusChip }
       }
     }
 
@@ -1577,6 +1628,40 @@ Item {
   component RightModules: ModuleList {
     entries: root.layoutEntries("right")
     region: "right"
+  }
+
+  component QuickStatusModules: ModuleList {
+    entries: root.layoutEntries("quickStatus")
+    region: "quickStatus"
+  }
+
+  // A section chip that fades and eases down into place from just above the
+  // bar as its content goes from empty to non-empty, instead of the plain
+  // chips' instant show/hide. Used for sections that are only sometimes
+  // present (now-playing media, the quick-status pill) rather than the
+  // always-there left/right sections.
+  component AnimatedPillChip: Rectangle {
+    id: pillChip
+
+    property real contentWidth: 0
+    property real chipHPad: 0
+    readonly property bool revealed: contentWidth > 0
+    property real revealOffset: revealed ? 0 : -Style.space(14)
+
+    width: contentWidth > 0 ? contentWidth + chipHPad * 2 : 0
+    height: parent.height
+    radius: height / 2
+    visible: opacity > 0
+    opacity: revealed ? 1 : 0
+    color: root.transparent ? "transparent" : root.frostedBackground(root.background)
+
+    transform: Translate { y: pillChip.revealOffset }
+
+    // Slow and deliberate on the way in; going away is instant (the content
+    // collapsing to zero width already hides it, and no exit animation was
+    // asked for).
+    Behavior on opacity { NumberAnimation { duration: 650; easing.type: Easing.OutCubic } }
+    Behavior on revealOffset { NumberAnimation { duration: 650; easing.type: Easing.OutCubic } }
   }
 
   component CenterModules: Item {

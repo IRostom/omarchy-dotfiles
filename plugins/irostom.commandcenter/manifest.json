@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "irostom.commandcenter",
+  "name": "Command Center",
+  "version": "1.0.2",
+  "author": "irostom",
+  "description": "macOS-style quick controls: Wi-Fi/Bluetooth, volume, now playing, and system toggles",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Command Center",
+    "description": "Wi-Fi/Bluetooth, volume, now playing, and quick toggles in one popup",
+    "category": "Status",
+    "allowMultiple": false
+  }
+}
