@@ -60,6 +60,18 @@ active, animating in/out rather than popping. The center pill now similarly
 gates the now-playing media widget to "actually playing" (not just loaded)
 before showing itself.
 
+That center pill is also a **droplet**: when playback starts it oozes down out
+of the top screen edge, held to it by a sticky concave-filleted neck that
+stretches, thins, and has pinched off entirely by the time the chip settles
+into the bar — so what's left is just the chip. Hovering it grows it sideways
+from the compact one-line label into album art, title over artist, and
+transport controls. It stays one widget throughout; nothing hangs below the
+bar. Configured under `bar.mediaPill` in `shell.json`, with `mode` choosing
+between `persistent` (droplet once, when playback starts), `transient` (also
+replays it on every track change and expands the chip for `hold` ms), and
+`off`. See `plugins/irostom.bar/README.md` for the full key list and how the
+blob is drawn.
+
 Each folder under `plugins/` is a self-contained Omarchy shell plugin per the
 [plugin development reference](https://plugins.omarchy.org/develop.html)
 (`manifest.json`, entry point, `README.md`, `LICENSE`) and passes

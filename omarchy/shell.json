@@ -1,6 +1,10 @@
 {
   "bar": {
     "centerAnchor": "",
+    "mediaPill": {
+      "mode": "transient",
+      "hold": 4000
+    },
     "layout": {
       "center": [
         {

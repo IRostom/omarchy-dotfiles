@@ -58,6 +58,28 @@ Item {
   readonly property var mediaService: root.shell && typeof root.shell.firstPartyServiceFor === "function"
     ? root.shell.firstPartyServiceFor("omarchy.media") : null
   readonly property bool mediaPlaying: !!(mediaService && mediaService.activePlayer && mediaService.activePlayer.isPlaying)
+  // Identity of what is playing. A change here is what replays the centre
+  // chip's drop in transient mode. Joined through JSON rather than glued with
+  // a separator so no title containing that separator can forge a collision.
+  readonly property string mediaTrackKey: {
+    var p = mediaService ? mediaService.activePlayer : null
+    if (!p) return ""
+    var t = p.trackTitle || ""
+    var a = p.trackArtist || ""
+    return t === "" && a === "" ? "" : JSON.stringify([t, a])
+  }
+
+  // Media chip config, read from shell.json's `bar.mediaPill` object. See
+  // MediaChip.qml. Lives on the bar rather than on the omarchy.media
+  // widget entry because only a bar-capability plugin can reach the media
+  // service at all, and because the droplet is the centre chip itself — the
+  // bar's geometry, not the widget's.
+  //   mode: "off"        — plain chip, no droplet, no hover expansion
+  //         "persistent" — droplet entrance; hover expands the chip
+  //         "transient"  — as persistent, and every track change replays the
+  //                        droplet and expands the chip for `hold` ms
+  property string mediaPillMode: "transient"
+  property int mediaPillHold: 4000
   property bool requestedTransparent: false
   property bool useTransparentForeground: false
   property bool transparent: false
@@ -601,6 +623,7 @@ Item {
     position = normalizePosition(config.position)
     setRequestedTransparency(config.transparent === true)
     centerAnchor = Util.canonicalWidgetId(config.centerAnchor || "")
+    applyMediaPillConfig(config)
 
     // layoutEntries feeds plain JS arrays to the module Repeaters, and QML
     // cannot diff those: reassigning layoutConfig rebuilds every widget on
@@ -614,6 +637,17 @@ Item {
     }
     layoutConfig = next
     barConfigSerial++
+  }
+
+  // Runs before applyBarConfig's inline-settings early return, so the pill
+  // reconfigures itself even when a shell.json write only touched widget
+  // settings and the layout is patched in place.
+  function applyMediaPillConfig(config) {
+    var pill = Util.isPlainObject(config.mediaPill) ? config.mediaPill : {}
+    var mode = String(pill.mode || "")
+    mediaPillMode = ["off", "transient", "persistent"].indexOf(mode) !== -1 ? mode : "transient"
+    var hold = Number(pill.hold)
+    mediaPillHold = hold > 0 ? Math.round(hold) : 4000
   }
 
   function applySettingsDelta(delta) {
@@ -1276,9 +1310,16 @@ Item {
     // Gap between the bar and the screen edge it sits against.
     readonly property int edgeGap: Style.space(8)
 
+    // Strip of surface reaching up into that gap, all the way to the screen
+    // edge, so the media chip's goo neck has an edge to weld itself to (see
+    // MediaChip.qml). Nothing else paints in it. It costs no layout: the top
+    // margin gives back exactly what the height takes, so the chips, the
+    // exclusive zone and the hidden-bar offset are all where they were.
+    readonly property int gooInset: root.position === "top" && !root.vertical ? edgeGap : 0
+
     margins {
       top: root.position === "top"
-        ? (root.barHidden ? -(implicitHeight + edgeGap) : edgeGap)
+        ? (root.barHidden ? -(implicitHeight + edgeGap) : edgeGap - gooInset)
         : 0
       bottom: root.position === "bottom"
         ? (root.barHidden ? -(implicitHeight + edgeGap) : edgeGap)
@@ -1301,7 +1342,7 @@ Item {
     readonly property int chipHPad: Style.space(10)
 
     implicitWidth: root.vertical ? root.barSize : 0
-    implicitHeight: root.vertical ? 0 : root.barSize + pillVPad * 2
+    implicitHeight: root.vertical ? 0 : root.barSize + pillVPad * 2 + gooInset
     // The window surface stays transparent; each section chip paints its
     // own background, so the gaps between chips show the desktop through.
     color: "transparent"
@@ -1311,6 +1352,10 @@ Item {
 
     Loader {
       anchors.fill: parent
+      // Everything but the goo strip. Bar content keeps the exact geometry it
+      // had before the surface grew upwards; only MediaChip reaches past this
+      // (with a negative y, nothing here clips) to touch the screen edge.
+      anchors.topMargin: barWindow.gooInset
       sourceComponent: root.vertical ? verticalBar : horizontalBar
 
       // A child of the loader, not a sibling of the sections: an ancestor stays
@@ -1394,35 +1439,103 @@ Item {
       Item {
         anchors.fill: parent
 
-        AnimatedPillChip {
-          id: centerChip
+        // The now-playing chip. The stock omarchy.media widget shows itself
+        // for any loaded track, paused included. This bar only ever gives it
+        // the whole center pill (no neighbors to share space with), so gate it
+        // down further to "actually playing" here, using the trusted bar's own
+        // service access — a plain bar-widget clone of omarchy.media can't
+        // reach firstPartyServiceFor itself (see shell.qml's
+        // createScopedPluginShell: the media service id is only handed to
+        // plugins with real bar capabilities), so the gating has to live here
+        // instead of in a fork of the widget.
+        //
+        // The chip itself is one widget in two states: the compact
+        // omarchy.media label, and — on hover, or briefly after a track change
+        // in transient mode — MediaExpanded's art/title/artist/controls. It
+        // grows sideways between them; it never becomes a second surface.
+        Item {
+          id: centerHost
+
+          readonly property bool expandable: root.mediaPlaying && root.mediaPillMode !== "off"
+          readonly property bool expanded: expandable
+            && (centerHover.hovered || centerChip.autoExpanded)
+          readonly property real targetContentWidth: !root.mediaPlaying
+            ? 0 : (expanded ? expandedContent.implicitWidth : centerModules.width)
+
+          // Bound, not assigned, so it still tracks a title change mid-hover.
+          property real contentWidth: targetContentWidth
+          Behavior on contentWidth {
+            NumberAnimation { duration: 280; easing.type: Easing.OutCubic }
+          }
+
           anchors.horizontalCenter: parent.horizontalCenter
           anchors.verticalCenter: parent.verticalCenter
-          contentWidth: centerGate.width
-          chipHPad: barWindow.chipHPad
-        }
+          width: contentWidth > 0 ? contentWidth + barWindow.chipHPad * 2 : 0
+          height: parent.height
+          // Deliberately not `width > 0`. The compact media widget reports
+          // implicitWidth 0 while it is invisible, so gating this on the width
+          // it feeds would latch the chip shut: width 0 -> host invisible ->
+          // widget invisible -> width 0, with nothing able to break the cycle.
+          // Anything already playing when the shell starts would never appear.
+          visible: root.mediaPlaying || centerChip.progress > 0.002
 
-        // The stock omarchy.media widget shows itself for any loaded track,
-        // paused included. This bar only ever gives it the whole center pill
-        // (no neighbors to share space with), so gate it down further to
-        // "actually playing" here, using the trusted bar's own service
-        // access — a plain bar-widget clone of omarchy.media can't reach
-        // firstPartyServiceFor itself (see shell.qml's createScopedPluginShell:
-        // the media service id is only handed to plugins with real bar
-        // capabilities), so the gating has to live here instead of in a fork
-        // of the widget. `visible` (not just zero size) keeps the hidden
-        // widget's own click target out of the hit-test area too.
-        Item {
-          id: centerGate
-          anchors.centerIn: centerChip
-          visible: root.mediaPlaying
-          implicitWidth: visible ? centerModules.width : 0
-          implicitHeight: visible ? centerModules.height : 0
-          width: implicitWidth
-          height: implicitHeight
-          clip: true
+          // On an ancestor rather than a sibling: a HoverHandler here keeps
+          // reporting while the pointer is over the media widget's own mouse
+          // area, which a sibling would lose hover to.
+          HoverHandler { id: centerHover }
 
-          CenterModules { id: centerModules; anchors.centerIn: parent }
+          MediaChip {
+            id: centerChip
+            anchors.fill: parent
+            bar: root
+            gooInset: barWindow.gooInset
+            mode: root.mediaPillMode
+            holdMs: root.mediaPillHold
+            active: root.mediaPlaying
+            trackKey: root.mediaTrackKey
+          }
+
+          // Clipped so the two states slide out of sight during the width
+          // animation instead of spilling past the chip. The clip must not
+          // reach the chip background, which paints above its own bounds.
+          Item {
+            anchors.fill: parent
+            // Follows the capsule so the label rides the droplet down rather
+            // than hanging in the gap while the chip is still falling.
+            y: centerChip.contentOffset
+            clip: true
+            // Held back until the chip has cleared the screen edge, otherwise
+            // the text scrolls visibly through the goo strip on the way in.
+            opacity: Math.max(0, Math.min(1, (centerChip.progress - 0.45) / 0.35))
+
+            Item {
+              id: centerGate
+              anchors.centerIn: parent
+              // Visibility follows the host, never the expansion: an invisible
+              // media widget measures 0 wide, and the collapsed width is read
+              // straight off it. `enabled` is what keeps its click target out
+              // of the way of the expanded transport controls.
+              visible: centerHost.visible
+              enabled: !centerHost.expanded
+              width: centerModules.width
+              height: centerModules.height
+              opacity: centerHost.expanded ? 0 : 1
+              Behavior on opacity { NumberAnimation { duration: 140 } }
+
+              CenterModules { id: centerModules; anchors.centerIn: parent }
+            }
+
+            MediaExpanded {
+              id: expandedContent
+              anchors.centerIn: parent
+              height: parent.height
+              bar: root
+              visible: centerHost.visible && centerHost.expandable
+              enabled: centerHost.expanded
+              opacity: centerHost.expanded ? 1 : 0
+              Behavior on opacity { NumberAnimation { duration: 180 } }
+            }
+          }
         }
 
         Rectangle {
