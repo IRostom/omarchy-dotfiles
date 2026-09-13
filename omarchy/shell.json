@@ -28,7 +28,7 @@
           "id": "irostom.workspaces"
         },
         {
-          "id": "omarchy.menu"
+          "id": "irostom.menu"
         }
       ],
       "right": [
@@ -88,5 +88,11 @@
     "screensaver": 150
   },
   "plugins": [],
-  "version": 1
+  "version": 1,
+  "disabledPlugins": [
+    "omarchy.menu"
+  ],
+  "cloneSourceRestores": [
+    "irostom.menu"
+  ]
 }
