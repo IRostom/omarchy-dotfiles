@@ -21,6 +21,7 @@ plugins/
   irostom.logimouse/   # fork of the third-party omalogimouse plugin (MX Master mouse control)
   irostom.ollama/      # bar widget: local Ollama server status, context window, loaded models
   irostom.commandcenter/ # bar widget: macOS-Control-Center-style popup (Wi-Fi/Bluetooth/volume/media/quick toggles)
+  irostom.menu/        # clone of the built-in menu, plus a query-plugin layer (calculator, unit/currency conversion)
 ```
 
 ### Frosted glass, theme-independent
@@ -91,6 +92,24 @@ its Solaar-backed process directly instead of looking it up through that
 bridge — see its own README for the full explanation. This is a property of
 running *any* custom bar, not something specific to `irostom.bar`'s styling.
 
+### And why the cloned menu carries its own app library
+
+`irostom.menu` hit a second, related case. The shell hands a scoped
+`appLibrary` to any plugin declaring `kind: "menu"`, which is what fills the
+Apps list. It does not survive for a *cloned* menu: `shell.qml`'s
+`prunePluginApis()` destroys a third-party plugin's scoped APIs whenever
+`isEnabled()` reads false, which it transiently does while `shell.json` is
+being re-applied — and nothing ever re-injects them. `isEnabled()`
+short-circuits to `true` for first-party plugins, so only clones are hit. The
+symptom is exact: the built-in menu lists 77 apps, a byte-identical clone
+lists none.
+
+So `irostom.menu` owns its app library instead of borrowing one, carrying
+verbatim copies of the shell's `AppLibrary.qml` and `AppSearch.js` — the same
+move `irostom.logimouse` makes with its Solaar service. Both are the same
+lesson: a third-party plugin that depends on a host-injected object inherits
+that object's lifetime bugs, and owning it outright is the durable fix.
+
 ## Restoring on a fresh Omarchy install
 
 Do these **in order**. Steps 1–2 are config files; steps 3–5 are the plugins
@@ -134,6 +153,7 @@ Simplest correct order:
    ln -s "$REPO/plugins/irostom.logimouse" ~/.config/omarchy/plugins/irostom.logimouse
    ln -s "$REPO/plugins/irostom.ollama" ~/.config/omarchy/plugins/irostom.ollama
    ln -s "$REPO/plugins/irostom.commandcenter" ~/.config/omarchy/plugins/irostom.commandcenter
+   ln -s "$REPO/plugins/irostom.menu" ~/.config/omarchy/plugins/irostom.menu
    omarchy-shell shell rescanPlugins
    ```
 
@@ -159,7 +179,8 @@ Simplest correct order:
    ```bash
    hyprctl configerrors        # empty output = clean
    omarchy plugin list --json  # irostom.bar / irostom.tray / irostom.workspaces / irostom.logimouse /
-                                # irostom.ollama / irostom.commandcenter should show up, enabled
+                                # irostom.ollama / irostom.commandcenter / irostom.menu should show up,
+                                # enabled — and omarchy.menu should show as disabled, replaced by the clone
    ```
 
 ### Adding a genuinely third-party plugin (not part of this repo)
